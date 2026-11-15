@@ -10,7 +10,13 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.vite-image-cache
 *.local
+
+# Local tooling and generated exports
+tmp/
+output/
+.claude/
 
 # Editor directories and files
 .vscode/*

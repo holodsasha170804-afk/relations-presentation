@@ -1,0 +1,2685 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,800;6..12,900&display=swap");
+
+/* ===========================================================================
+ * Relations presentation
+ *
+ * Sections, in cascade order:
+ *   1. Tokens      — every colour, offset and easing used by the deck
+ *   2. Base        — Reveal reset and the shared 1920x1080 canvas
+ *   3. Utilities   — the reusable patterns (.u-layer, .u-surface, .u-callout)
+ *   4. Chrome      — header grid, dot grids, frame: identical on every slide
+ *   5. Slides      — per-slide positioning deltas only
+ *   6. Motion      — entrances, fragments, overview and reduced-motion
+ *
+ * Deliberately NOT using @layer: reveal.css is imported unlayered from
+ * main.js, and unlayered rules beat every layered rule regardless of
+ * specificity. Ordinary source order keeps us able to override Reveal.
+ * ======================================================================== */
+
+/* ===========================================================================
+ * 1. Tokens
+ * ======================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  /* Canvas and ink */
+  --canvas: #0f1725;
+  --text: #f8f8f7;
+  --text-muted: rgba(248, 248, 247, 0.84);
+  --text-faint: rgba(240, 244, 248, 0.74);
+
+  /* One accent red for the whole deck */
+  --accent: #ff5a57;
+  --accent-ink: #141a26;
+  --accent-soft: #ff6f68;
+  --accent-deep: #d82730;
+
+  /* Success cue used by the perspective slide's checkmarks. */
+  --success: #b8f6b8;
+  --success-ink: #14261b;
+
+  /* Panel skin, read by .u-surface and .u-callout */
+  --surface-border: rgba(255, 255, 255, 0.7);
+  --surface-border-soft: rgba(218, 228, 240, 0.5);
+  --surface-from: rgba(52, 61, 76, 0.9);
+  --surface-to: rgba(22, 29, 41, 0.92);
+  --surface-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+
+  /* Icon tiles and the number badge */
+  --tile-bg: linear-gradient(
+    145deg,
+    rgba(61, 65, 75, 0.98),
+    rgba(30, 33, 41, 0.98)
+  );
+  --badge-bg: linear-gradient(145deg, #3e4653, #272d37);
+
+  /* Data visualisation */
+  --viz-coral: linear-gradient(90deg, #ff8b7d, #ff5b61);
+  --viz-blue: linear-gradient(90deg, #bce7ff, #73b7ff);
+  --viz-violet: linear-gradient(90deg, #ded0ff, #ac95ee);
+
+  /* Header grid */
+  --pad-x: 64px;
+  --pad-y: 54px;
+
+  /* Depth. One scale for every slide, so no rule invents its own number. */
+  --z-decor: 1;
+  --z-scene: 2;
+  --z-content: 3;
+  --z-header: 4;
+  --z-frame: 5;
+
+  /* Motion */
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-drop: cubic-bezier(0.22, 0.8, 0.3, 1);
+
+  background: var(--canvas);
+}
+
+/* ===========================================================================
+ * 2. Base
+ * ======================================================================== */
+
+html,
+body,
+body.reveal-viewport {
+  background-color: var(--canvas);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+.reveal {
+  font-family: "Nunito Sans", Arial, sans-serif;
+  background: var(--canvas);
+  color: var(--text);
+}
+
+.reveal .slides {
+  text-align: left;
+  isolation: isolate;
+}
+
+.reveal .slides img {
+  max-width: none;
+}
+
+/* One visual environment for the entire deck: the content changes, the
+   canvas does not. Each slide is its own stacking context. */
+.reveal .slides > section,
+.reveal .slides > .pdf-page > section {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--text);
+  z-index: 1;
+  background-color: var(--canvas);
+  background-image:
+    radial-gradient(
+      ellipse at 18% 78%,
+      rgba(35, 44, 64, 0.34),
+      transparent 29%
+    ),
+    radial-gradient(
+      ellipse at 78% 45%,
+      rgba(38, 52, 76, 0.28),
+      transparent 31%
+    ),
+    radial-gradient(ellipse at 50% 51%, #182131 0%, #111a29 61%, #0d1522 100%);
+}
+
+.reveal .presentation-progress {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 59;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.reveal .presentation-progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(255, 90, 87, 0.58);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 180ms linear;
+}
+
+.presentation-controls {
+  position: fixed;
+  z-index: 60;
+  right: calc(8px + env(safe-area-inset-right, 0px));
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  gap: 0;
+}
+
+.presentation-button {
+  box-sizing: border-box;
+  position: relative;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.presentation-button::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(21, 29, 42, 0.35);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.presentation-button:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -3px;
+}
+
+.presentation-button:active::before {
+  background: rgba(48, 59, 78, 0.65);
+}
+
+.presentation-button[hidden] {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .presentation-button:hover::before {
+    border-color: var(--accent);
+    background: rgba(48, 59, 78, 0.65);
+  }
+}
+
+.presentation-button svg {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.5;
+}
+
+/* ===========================================================================
+ * 3. Utilities
+ * ======================================================================== */
+
+/* A full-slide wrapper. Transparent to the pointer so it can never swallow
+   clicks or the DevTools element picker — discrete content opts back in.
+   Every overlapping scene in the deck is built from these. */
+.u-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The shared dark translucent panel. Components override only the deltas
+   (--surface-radius, and --surface-border where the design calls for it). */
+.u-surface {
+  box-sizing: border-box;
+  border: 2px solid var(--surface-border);
+  border-radius: var(--surface-radius, 34px);
+  background: linear-gradient(135deg, var(--surface-from), var(--surface-to));
+  box-shadow: var(--surface-shadow);
+}
+
+/* The accent-ruled conclusion bar across the foot of a slide. */
+.u-callout {
+  position: absolute;
+  z-index: var(--z-content);
+  right: 56px;
+  left: 56px;
+  box-sizing: border-box;
+  border: 2px solid var(--surface-border);
+  border-radius: var(--surface-radius, 29px);
+  background: linear-gradient(135deg, var(--surface-from), var(--surface-to));
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.2);
+}
+
+.u-callout span {
+  color: var(--accent);
+  font-weight: 900;
+}
+
+.u-callout strong {
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+/* Panels and callouts are real content: keep them hit-testable even when
+   they sit inside a .u-layer. */
+.u-surface,
+.u-callout {
+  pointer-events: auto;
+}
+
+/* Icon plate behind a Lucide glyph. */
+.icon-tile,
+.binding-icon,
+.outline-icon,
+.linkedin-chart-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: var(--tile-border, 0 solid transparent);
+  border-radius: var(--tile-radius, 38px);
+  background: var(--tile-bg);
+}
+
+/* ===========================================================================
+ * 4. Chrome — identical on every slide
+ * ======================================================================== */
+
+.slide-header {
+  position: absolute;
+  z-index: var(--z-header);
+  top: var(--pad-y);
+  left: var(--pad-x);
+  width: calc(100% - var(--pad-x) * 2);
+}
+
+.slide-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  width: 92px;
+  height: 62px;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--badge-bg);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.slide-title {
+  position: absolute;
+  top: 6px;
+  left: 152px;
+  margin: 0;
+  font-size: 74px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.052em;
+  text-shadow: 0 4px 9px rgba(0, 0, 0, 0.2);
+}
+
+.slide-subtitle {
+  position: absolute;
+  top: 88px;
+  left: 152px;
+  margin: 0;
+  font-size: 39px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.accent-line {
+  width: 236px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.slide-header .accent-line {
+  position: absolute;
+  top: 94px;
+  left: 156px;
+  margin: 0;
+}
+
+.dot-grid {
+  position: absolute;
+  z-index: var(--z-decor);
+  width: 390px;
+  height: 62px;
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.9) 3px,
+    transparent 3.5px
+  );
+  background-size: 42px 34px;
+  opacity: 0.95;
+}
+
+.dot-grid-top {
+  top: 49px;
+  right: 78px;
+}
+
+.dot-grid-bottom {
+  bottom: 70px;
+  left: 78px;
+}
+
+.slide-frame {
+  z-index: var(--z-frame);
+}
+
+.frame-line,
+.frame-corner {
+  position: absolute;
+  display: block;
+}
+
+.frame-line {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.frame-line-top {
+  top: 24px;
+  right: 84px;
+  left: 84px;
+  height: 2px;
+}
+
+.frame-line-right {
+  top: 84px;
+  right: 24px;
+  bottom: 84px;
+  width: 2px;
+}
+
+.frame-line-bottom {
+  right: 84px;
+  bottom: 24px;
+  left: 84px;
+  height: 2px;
+}
+
+.frame-line-left {
+  top: 84px;
+  bottom: 84px;
+  left: 24px;
+  width: 2px;
+}
+
+.frame-corner {
+  box-sizing: border-box;
+  width: 56px;
+  height: 56px;
+  border-color: var(--accent);
+  border-style: solid;
+  border-width: 0;
+}
+
+.frame-corner-tl {
+  top: 18px;
+  left: 18px;
+  border-top-width: 12px;
+  border-left-width: 12px;
+}
+
+.frame-corner-tr {
+  top: 18px;
+  right: 18px;
+  border-top-width: 12px;
+  border-right-width: 12px;
+}
+
+.frame-corner-br {
+  right: 18px;
+  bottom: 18px;
+  border-right-width: 12px;
+  border-bottom-width: 12px;
+}
+
+.frame-corner-bl {
+  bottom: 18px;
+  left: 18px;
+  border-bottom-width: 12px;
+  border-left-width: 12px;
+}
+
+/* ===========================================================================
+ * 5. Slides
+ * ======================================================================== */
+
+/* --- 1. Cover ------------------------------------------------------------ */
+
+.cover-header {
+  width: 940px;
+}
+
+.cover-title {
+  margin: 99px 0 0;
+  font-size: 74px;
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+  text-shadow: 0 4px 9px rgba(0, 0, 0, 0.2);
+}
+
+.cover-title span {
+  color: var(--accent);
+}
+
+.cover-header .accent-line {
+  position: static;
+  margin-top: 39px;
+}
+
+.cover-author {
+  margin: 28px 0 0;
+  color: var(--text-muted);
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+/* Frame sits at 24px; keep the artwork 20px inside it on every edge. */
+.cover-artwork {
+  z-index: var(--z-scene);
+  inset: 45px;
+  overflow: hidden;
+}
+
+.cover-route,
+.cover-character {
+  position: absolute;
+  inset: -45px;
+  display: block;
+  width: calc(100% + 90px);
+  height: calc(100% + 90px);
+  object-fit: fill;
+  user-select: none;
+}
+
+.cover-route {
+  z-index: 1;
+}
+
+.cover-character {
+  z-index: 2;
+}
+
+/* --- 2. Comparison ------------------------------------------------------- */
+
+.comparison-slide .accent-line {
+  top: 92px;
+  width: 178px;
+}
+
+.comparison-stage {
+  z-index: var(--z-scene);
+  inset: 45px;
+  overflow: hidden;
+}
+
+.participant {
+  position: absolute;
+  bottom: 105px;
+  width: 520px;
+  height: 720px;
+  pointer-events: auto;
+}
+
+.participant img {
+  position: absolute;
+  bottom: 0;
+  display: block;
+  width: 430px;
+  height: auto;
+}
+
+.participant-left {
+  left: 105px;
+}
+
+.participant-left img {
+  left: 45px;
+}
+
+.participant-right {
+  right: 105px;
+}
+
+.participant-right img {
+  right: 45px;
+}
+
+.speech-bubble {
+  position: absolute;
+  z-index: 2;
+  top: 55px;
+  min-height: 84px;
+  box-sizing: border-box;
+  padding: 16px 28px;
+  border: 1.5px solid var(--surface-border);
+  border-radius: 28px;
+  background: linear-gradient(135deg, var(--surface-from), var(--surface-to));
+  font-size: 27px;
+  font-weight: 900;
+  line-height: 1.05;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.speech-bubble i {
+  position: absolute;
+  bottom: -23px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-top: 23px solid var(--accent);
+  border-right: 16px solid transparent;
+  border-left: 16px solid transparent;
+  transform: translateX(-50%);
+}
+
+.participant-left .speech-bubble {
+  left: 8%;
+  width: 400px;
+}
+
+.participant-right .speech-bubble {
+  right: -6%;
+  width: 580px;
+}
+
+.nameplate {
+  position: absolute;
+  z-index: 2;
+  bottom: 3px;
+  box-sizing: border-box;
+  min-width: 160px;
+  padding: 6px 23px 8px;
+  border: 2px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fafafa 0%, #cacdd2 100%);
+  box-shadow:
+    0 5px 11px rgba(0, 0, 0, 0.25),
+    inset 0 2px rgba(255, 255, 255, 0.8);
+  color: #10141d;
+  font-size: 29px;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+.participant-left .nameplate {
+  left: 165px;
+}
+
+.participant-right .nameplate {
+  right: 165px;
+}
+
+.comparison-cards {
+  position: absolute;
+  z-index: var(--z-content);
+  top: 345px;
+  left: 50%;
+  display: grid;
+  gap: 20px;
+  width: 500px;
+  transform: translateX(-50%);
+}
+
+.comparison-card {
+  --drop-from: -44px;
+  display: flex;
+  align-items: center;
+  height: 140px;
+  padding: 18px 28px;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+}
+
+.comparison-card:nth-child(1) {
+  --i: 1;
+}
+.comparison-card:nth-child(2) {
+  --i: 2;
+}
+.comparison-card:nth-child(3) {
+  --i: 3;
+}
+
+.comparison-card > span:last-child {
+  padding-left: 23px;
+  border-left: 2px solid rgba(227, 232, 239, 0.74);
+}
+
+.icon-tile {
+  --tile-radius: 17px;
+  width: 82px;
+  height: 82px;
+  margin-right: 23px;
+}
+
+.icon-tile svg {
+  width: 51px;
+  height: 51px;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.comparison-question {
+  --surface-radius: 999px;
+  --enter-y: -52px;
+  position: absolute;
+  z-index: var(--z-content);
+  bottom: 44px;
+  left: 55%;
+  display: flex;
+  align-items: center;
+  min-height: 96px;
+  padding: 10px 42px 10px 12px;
+  font-size: 42px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, var(--enter-y));
+}
+
+.question-icon {
+  display: grid;
+  width: 60px;
+  height: 60px;
+  place-items: center;
+  margin-right: 20px;
+  border-radius: 20px;
+  background: var(--accent);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.question-icon svg {
+  width: 44px;
+  height: 44px;
+  stroke: var(--accent-ink);
+  stroke-width: 2.8;
+}
+
+/* --- 3. Outline ---------------------------------------------------------- */
+
+.outline-slide .accent-line {
+  top: 106px;
+  height: 18px;
+}
+
+.outline-content {
+  position: absolute;
+  z-index: var(--z-scene);
+  top: 262px;
+  right: 245px;
+  bottom: 148px;
+  left: 405px;
+}
+
+.outline-timeline {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 64px;
+  height: 607px;
+}
+
+.outline-timeline i {
+  position: absolute;
+  top: 68px;
+  left: 31px;
+  width: 5px;
+  height: 471px;
+  border-radius: 99px;
+  background: linear-gradient(#fff8f3, #eee7e2);
+  box-shadow: 0 0 9px rgba(255, 238, 228, 0.26);
+}
+
+.outline-timeline b {
+  position: absolute;
+  z-index: 1;
+  left: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fffdf8, #e6dad3 68%);
+  box-shadow: 0 4px 9px rgba(0, 0, 0, 0.28);
+}
+
+.outline-timeline b:nth-of-type(1) {
+  top: 47px;
+  background: radial-gradient(circle at 35% 30%, #ff7d6d, #f23e39 68%);
+  box-shadow: 0 0 22px rgba(255, 78, 80, 0.7);
+}
+.outline-timeline b:nth-of-type(2) {
+  top: 204px;
+}
+.outline-timeline b:nth-of-type(3) {
+  top: 361px;
+}
+.outline-timeline b:nth-of-type(4) {
+  top: 518px;
+}
+
+.outline-items {
+  display: grid;
+  gap: 21px;
+  margin-left: 117px;
+}
+
+.outline-item {
+  --surface-radius: 38px;
+  display: flex;
+  align-items: center;
+  height: 136px;
+  padding: 14px 31px 14px 0;
+}
+
+.outline-item:nth-child(1) {
+  --i: 1;
+}
+.outline-item:nth-child(2) {
+  --i: 2;
+}
+.outline-item:nth-child(3) {
+  --i: 3;
+}
+.outline-item:nth-child(4) {
+  --i: 4;
+}
+
+.outline-icon {
+  --tile-border: 1.5px solid rgba(255, 255, 255, 0.35);
+  width: 174px;
+  height: 136px;
+  margin: -14px 32px -14px 0;
+}
+
+.outline-icon svg {
+  width: 75px;
+  height: 75px;
+  stroke: var(--text);
+  stroke-width: 2.25;
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.32));
+}
+
+.outline-item h3,
+.outline-item p {
+  margin: 0;
+}
+
+.outline-item h3 {
+  font-size: 52px;
+  font-weight: 900;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+
+.outline-item p {
+  margin-top: 12px;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+
+/* --- 4. Definition ------------------------------------------------------- */
+/* Reference implementation of a layered scene: one named layer per visual
+   band, ordered locally, each transparent to the pointer. */
+
+.definition-slide .accent-line {
+  top: 98px;
+  width: 258px;
+  height: 17px;
+}
+
+.definition-diagram {
+  z-index: var(--z-scene);
+}
+.definition-platforms {
+  z-index: 0;
+}
+.definition-links {
+  z-index: 1;
+}
+.definition-people {
+  z-index: 2;
+}
+
+.definition-diagram img,
+.definition-weak-links {
+  position: absolute;
+  right: auto;
+  bottom: auto;
+  display: block;
+  object-fit: fill;
+}
+
+/* Full-bleed artwork stays pointer-transparent so it can never hide the
+   content underneath it from a click or the inspector. */
+.definition-weak-links {
+  z-index: var(--z-content);
+  pointer-events: none;
+}
+
+.definition-person-shift {
+  translate: -28px -16px;
+}
+
+.definition-people img:nth-child(1) {
+  --i: 1;
+}
+.definition-people img:nth-child(2) {
+  --i: 2;
+}
+.definition-people img:nth-child(3) {
+  --i: 3;
+}
+.definition-people img:nth-child(4) {
+  --i: 4;
+}
+.definition-people img:nth-child(5) {
+  --i: 5;
+}
+.definition-people img:nth-child(6) {
+  --i: 6;
+}
+.definition-people img:nth-child(7) {
+  --i: 7;
+}
+
+.binding-card {
+  --surface-radius: 52px;
+  position: absolute;
+  z-index: var(--z-content);
+  left: 78px;
+  display: flex;
+  align-items: center;
+  width: 792px;
+  padding: 24px 36px 24px 40px;
+}
+
+.binding-card-strong {
+  --surface-border: rgba(255, 110, 105, 0.86);
+  top: 260px;
+  height: 250px;
+}
+
+.binding-card-weak {
+  top: 540px;
+  height: 284px;
+}
+
+.binding-icon {
+  flex-shrink: 0;
+  --tile-radius: 40px;
+  --tile-border: 1.5px solid rgba(255, 255, 255, 0.21);
+  width: 174px;
+  height: 162px;
+  margin-right: 32px;
+}
+
+.binding-icon svg {
+  width: 87px;
+  height: 87px;
+  stroke: var(--text);
+  stroke-width: 2.3;
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.3));
+}
+
+.binding-card-strong .binding-icon svg {
+  stroke: var(--accent);
+}
+
+.binding-card > div:last-child {
+  min-width: 0;
+  padding-left: 27px;
+  border-left: 2px solid rgba(231, 235, 241, 0.64);
+}
+
+.binding-card h3 {
+  margin: 0;
+  font-size: 50px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.binding-card h3 em {
+  color: var(--accent);
+  font-style: normal;
+}
+
+.binding-card-weak h3 {
+  white-space: nowrap;
+}
+
+.binding-card ul {
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 31px;
+  font-weight: 800;
+  line-height: 1.34;
+}
+
+.binding-card li {
+  position: relative;
+  padding-left: 48px;
+}
+
+.binding-card li::before {
+  content: "";
+  position: absolute;
+  top: 0.45em;
+  left: 5px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: var(--text);
+}
+
+.binding-card-strong li::before {
+  background: var(--accent);
+}
+
+/* --- 5. Research --------------------------------------------------------- */
+
+.research-slide .accent-line {
+  top: 94px;
+  width: 272px;
+  height: 17px;
+}
+
+.researcher-card {
+  position: absolute;
+  z-index: var(--z-scene);
+  top: 210px;
+  left: 56px;
+  width: 490px;
+  height: 560px;
+  border-right: 2px solid rgba(220, 228, 238, 0.4);
+}
+
+.researcher-card > img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 210px;
+  height: 266px;
+  border: 2px solid rgba(248, 248, 247, 0.84);
+  border-radius: 26px;
+  object-fit: cover;
+  object-position: 51% 21%;
+  filter: saturate(0.77) contrast(0.93) brightness(0.8);
+}
+
+.researcher-details {
+  position: absolute;
+  top: 28px;
+  left: 225px;
+  width: 255px;
+}
+
+.researcher-details h3 {
+  margin: 0;
+  font-size: 37px;
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+}
+
+.researcher-details > span {
+  display: inline-grid;
+  min-width: 105px;
+  height: 46px;
+  padding: 0 17px;
+  place-items: center;
+  margin-top: 18px;
+  border-radius: 99px;
+  background: linear-gradient(145deg, #525c6d, #303847);
+  font-size: 31px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.researcher-details p {
+  margin: 24px 0 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.researcher-details p em {
+  display: block;
+  font-style: italic;
+}
+
+.researcher-sample {
+  position: absolute;
+  top: 345px;
+  left: 0;
+  width: 430px;
+  padding-top: 25px;
+  border-top: 2px solid rgba(239, 244, 248, 0.73);
+  text-align: center;
+}
+
+.researcher-sample strong {
+  display: block;
+  font-size: 108px;
+  font-weight: 900;
+  line-height: 0.86;
+  letter-spacing: -0.06em;
+}
+
+.researcher-sample span {
+  display: block;
+  margin-top: 12px;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.05;
+}
+
+.research-results {
+  position: absolute;
+  z-index: var(--z-scene);
+  top: 208px;
+  left: 610px;
+  width: 735px;
+}
+
+.research-divider {
+  position: absolute;
+  z-index: var(--z-scene);
+  top: 208px;
+  left: 1400px;
+  width: 2px;
+  height: 560px;
+  background: rgba(220, 228, 238, 0.36);
+}
+
+.research-results > h3 {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.research-basis {
+  margin: 14px 0 36px;
+  color: var(--text-muted);
+  font-size: 25px;
+  font-weight: 800;
+}
+
+.frequency-row {
+  margin-top: 29px;
+}
+
+.frequency-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.frequency-heading h4,
+.frequency-heading strong {
+  margin: 0;
+  font-size: 39px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.frequency-heading strong {
+  font-size: 46px;
+}
+
+.frequency-row > p {
+  min-height: 21px;
+  margin: 8px 0 10px;
+  color: var(--text-faint);
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.frequency-track {
+  height: 29px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #4a5568, #364052);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Each row carries its own value and palette; the track itself is generic. */
+.frequency-track i {
+  display: block;
+  width: var(--value);
+  height: 100%;
+  border-radius: inherit;
+  background: var(--viz);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.6),
+    0 0 15px var(--viz-glow);
+}
+
+.frequency-often {
+  --value: 16.7%;
+  --viz: var(--viz-coral);
+  --viz-glow: rgba(255, 91, 97, 0.36);
+}
+
+.frequency-sometimes {
+  --value: 55.6%;
+  --viz: var(--viz-blue);
+  --viz-glow: rgba(115, 183, 255, 0.34);
+}
+
+.frequency-rarely {
+  --value: 27.8%;
+  --viz: var(--viz-violet);
+  --viz-glow: rgba(172, 149, 238, 0.32);
+}
+
+.research-artwork {
+  z-index: var(--z-scene);
+  inset: 78px 20px auto auto;
+  width: 570px;
+  height: 750px;
+}
+
+.research-artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(-12px 20px 25px rgba(0, 0, 0, 0.4));
+}
+
+.research-insight {
+  --surface-radius: 28px;
+  bottom: 140px;
+  min-height: 108px;
+  padding: 18px 34px 17px 62px;
+}
+
+.research-insight::before {
+  content: "";
+  position: absolute;
+  top: 20px;
+  bottom: 20px;
+  left: 35px;
+  width: 7px;
+  border-radius: 99px;
+  background: var(--accent);
+}
+
+.research-insight span {
+  display: block;
+  font-size: 20px;
+  letter-spacing: 0.1em;
+}
+
+.research-insight strong {
+  display: block;
+  margin-top: 7px;
+  font-size: 32px;
+}
+
+/* --- 6. LinkedIn --------------------------------------------------------- */
+
+.linkedin-slide .accent-line {
+  top: 145px;
+}
+
+.linkedin-slide .dot-grid-bottom {
+  display: none;
+}
+
+.linkedin-scene {
+  z-index: var(--z-scene);
+}
+
+.linkedin-chart {
+  /* Plot geometry. Every label below is positioned from these, so the chart
+     can be any width and each label stays locked to its data point. Left and
+     right margins are balanced (~106px each, measured) so the curve sits
+     centered in the card rather than pushed right by the tick-label gutter. */
+  --plot-left: 220px;
+  --plot-right: 133px;
+  --plot-w: calc(100% - var(--plot-left) - var(--plot-right));
+
+  position: absolute;
+  z-index: 0;
+  /* Top and height both grew (405->375, 472->507): reclaimed from tighter
+     gaps above/below so the plot itself — not just the card — gets taller. */
+  top: 375px;
+  /* Left and right edges match the .linkedin-metrics grid above. */
+  right: 56px;
+  left: 515px;
+  height: 507px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 2px solid var(--surface-border-soft);
+  border-radius: 40px;
+  background: linear-gradient(
+    135deg,
+    rgba(22, 34, 50, 0.5),
+    rgba(15, 25, 38, 0.45)
+  );
+  pointer-events: auto;
+}
+
+/* The chart's own title, pressed to the card's own left edge — plenty of
+   width now that the plot (and the peak pill that floats above its curve)
+   sits lower, out of this row entirely. nowrap/ellipsis stays as a safety
+   net, not the design. */
+.linkedin-chart-heading {
+  position: absolute;
+  top: 20px;
+  left: 32px;
+  right: 28px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.linkedin-chart-icon {
+  width: 52px;
+  height: 52px;
+  --tile-radius: 16px;
+}
+
+.linkedin-chart-icon svg {
+  width: 28px;
+  height: 28px;
+  stroke: var(--text);
+  stroke-width: 2.4;
+}
+
+.linkedin-chart-heading strong {
+  overflow: hidden;
+  font-size: 46px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* The axis unit, sitting right above the y-axis start. */
+.linkedin-chart-caption {
+  position: absolute;
+  top: 90px;
+  left: calc(var(--plot-left) + 40px);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.linkedin-chart-ticks {
+  position: absolute;
+  top: 110px;
+  bottom: 91px;
+  left: 190px;
+  /* Right-aligned within a fixed column, ending a clear 6px before the
+     y-axis — robust regardless of how wide "0,4 %" renders. */
+  width: 52px;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+/* Pushed down from the top of the card to leave the heading room; the peak
+   pill below moves with it so it still floats over the curve's own peak. */
+.linkedin-chart-graphic {
+  position: absolute;
+  top: 71px;
+  bottom: 44px;
+  left: var(--plot-left);
+  width: var(--plot-w);
+  height: calc(115% - 160px);
+}
+
+.linkedin-chart-peak {
+  --at: 0.53;
+  position: absolute;
+  /* Follows the graphic's taller plot area (300px -> 335px) so it still
+     floats a consistent ~17px above the curve's own peak dot. */
+  top: 90px;
+  left: calc(var(--plot-left) + var(--plot-w) * var(--at));
+  padding: 9px 30px 11px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent-soft), var(--accent-deep));
+  box-shadow: 0 8px 15px rgba(255, 65, 69, 0.28);
+  font-size: 35px;
+  font-weight: 900;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+/* --at is the data point's x position as a fraction of the plot width,
+   matching its x in the SVG viewBox (0-1000): 105, 530 and 905. */
+.linkedin-chart-label {
+  position: absolute;
+  bottom: 54px;
+  left: calc(var(--plot-left) + var(--plot-w) * var(--at));
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+.linkedin-chart-start {
+  --at: 0.105;
+}
+
+.linkedin-chart-focus {
+  --at: 0.53;
+  padding: 7px 18px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, #596272, #333d4e);
+}
+
+.linkedin-chart-end {
+  --at: 0.905;
+}
+
+.linkedin-chart-title {
+  position: absolute;
+  right: 26px;
+  bottom: 64px;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+/* Faint dashed rules at each y-tick, behind the axis and the curve. */
+.chart-grid {
+  fill: none;
+  stroke: rgba(248, 248, 247, 0.16);
+  stroke-width: 1.5;
+  stroke-dasharray: 7 8;
+}
+
+/* The curve's own silhouette, filled and fading to transparent at the
+   baseline — the one place the accent red appears inside the plot. */
+.chart-area {
+  stroke: none;
+  fill: url(#linkedin-chart-area);
+}
+
+.chart-area-stop-top {
+  stop-color: var(--accent);
+  stop-opacity: 0.5;
+}
+
+.chart-area-stop-bottom {
+  stop-color: var(--accent);
+  stop-opacity: 0;
+}
+
+.chart-axis-x,
+.chart-axis-y {
+  fill: none;
+  stroke: rgba(248, 248, 247, 0.9);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.chart-arrow {
+  fill: rgba(248, 248, 247, 0.9);
+}
+
+.chart-curve {
+  fill: none;
+  stroke: #eff2f5;
+  stroke-width: 5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 6px 11px rgba(0, 0, 0, 0.28));
+}
+
+.chart-guide {
+  fill: none;
+  stroke: rgba(248, 248, 247, 0.76);
+  stroke-width: 2;
+  stroke-dasharray: 10 9;
+}
+
+.chart-dot {
+  fill: #f7f8f8;
+}
+
+.chart-focus {
+  fill: var(--text);
+  stroke: var(--accent);
+  stroke-width: 7;
+  filter: drop-shadow(0 0 13px rgba(255, 91, 97, 0.72));
+}
+
+.linkedin-character {
+  position: absolute;
+  z-index: 1;
+  bottom: 145px;
+  left: 28px;
+  width: 680px;
+  height: 680px;
+  object-fit: contain;
+  object-position: bottom left;
+  filter: drop-shadow(0 16px 19px rgba(0, 0, 0, 0.38));
+  pointer-events: auto;
+}
+
+.linkedin-logo {
+  position: absolute;
+  z-index: var(--z-content);
+  top: 40px;
+  right: 150px;
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+  filter: drop-shadow(0 15px 22px rgba(0, 0, 0, 0.3));
+}
+
+.linkedin-metrics {
+  position: absolute;
+  z-index: var(--z-content);
+  /* Nudged up from 250px: tightens the gap to the header so the chart below
+     can claim the extra height (it was rendering too flat/stretched). */
+  top: 233px;
+  right: 56px;
+  left: 515px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.linkedin-metrics article {
+  --surface-radius: 35px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 128px;
+  padding: 0 32px;
+}
+
+.linkedin-metrics svg {
+  flex: 0 0 auto;
+  width: 66px;
+  height: 66px;
+  margin-right: 25px;
+  stroke: var(--text);
+  stroke-width: 2.4;
+}
+
+.linkedin-metrics strong,
+.linkedin-metrics span {
+  display: block;
+  white-space: nowrap;
+}
+
+.linkedin-metrics strong {
+  font-size: 46px;
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.045em;
+}
+
+.linkedin-metrics span {
+  margin-top: 9px;
+  font-size: 29px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.linkedin-result {
+  bottom: 56px;
+  display: flex;
+  align-items: center;
+  min-height: 132px;
+  padding: 19px 42px;
+}
+
+.linkedin-result span {
+  flex: 0 0 auto;
+  padding-right: 34px;
+  border-right: 2px solid var(--accent);
+  font-size: 30px;
+  letter-spacing: 0.03em;
+}
+
+.linkedin-result strong {
+  margin-left: 42px;
+  font-size: 34px;
+}
+
+/* --- 7. Resolution ------------------------------------------------------ */
+
+.resolution-slide .accent-line {
+  display: none;
+}
+
+.resolution-accent-line {
+  position: absolute;
+  z-index: 0;
+  top: 148px;
+  left: 220px;
+  width: 316px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.resolution-scene {
+  z-index: var(--z-scene);
+}
+
+.resolution-panel {
+  --surface-radius: 54px;
+  position: absolute;
+  left: 72px;
+  width: calc(100% - 144px);
+  height: 336px;
+  overflow: visible;
+  isolation: isolate;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.resolution-panel::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  box-sizing: border-box;
+  border: 2px solid var(--surface-border);
+  border-radius: var(--surface-radius);
+  background: linear-gradient(135deg, var(--surface-from), var(--surface-to));
+  box-shadow: var(--surface-shadow);
+  transform-origin: left center;
+}
+
+.resolution-panel-thomas {
+  top: 249px;
+  --i: 1;
+}
+
+.resolution-panel-felix {
+  top: 670px;
+  --i: 2;
+}
+
+.resolution-person {
+  position: absolute;
+  z-index: 2;
+  top: -108px;
+  left: -80px;
+  width: 590px;
+  height: 440px;
+  object-fit: contain;
+  object-position: bottom left;
+  filter: drop-shadow(0 13px 16px rgba(0, 0, 0, 0.34));
+}
+
+.resolution-panel-felix .resolution-person {
+  top: -88px;
+  bottom: auto;
+  left: -16px;
+  width: 480px;
+  height: 420px;
+}
+
+.resolution-name {
+  position: absolute;
+  z-index: 3;
+  bottom: 28px;
+  left: 150px;
+  min-width: 208px;
+  padding: 12px 30px 13px;
+  border: 2px solid rgba(255, 255, 255, 0.62);
+  border-radius: 999px;
+  background: linear-gradient(
+    145deg,
+    rgba(250, 251, 251, 0.98),
+    rgba(198, 204, 214, 0.96)
+  );
+  box-shadow: 0 8px 13px rgba(0, 0, 0, 0.25);
+  color: var(--accent-ink);
+  font-size: 40px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-align: center;
+}
+
+.resolution-network {
+  position: absolute;
+  z-index: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 14px rgba(0, 0, 0, 0.28));
+}
+
+.resolution-network-thomas {
+  top: -30px;
+  left: 450px;
+  width: 538px;
+  height: 398px;
+}
+
+.resolution-network-felix {
+  top: -25px;
+  left: 480px;
+  width: 525px;
+  height: 387px;
+}
+
+/* --- 8. Perspectives ---------------------------------------------------- */
+
+.perspectives-slide .accent-line {
+  top: 145px;
+  width: 332px;
+}
+
+.perspectives-slide .dot-grid-bottom {
+  right: 78px;
+  bottom: 70px;
+  left: auto;
+}
+
+.perspectives-dot-left {
+  position: absolute;
+  z-index: var(--z-decor);
+  top: 200px;
+  left: 78px;
+  width: 118px;
+  height: 94px;
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.9) 3px,
+    transparent 3.5px
+  );
+  background-size: 42px 34px;
+}
+
+.perspectives-scene {
+  z-index: var(--z-scene);
+  transform: scale(0.69192);
+  transform-origin: left bottom;
+}
+
+.perspectives-table,
+.perspectives-bubble {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+
+.perspectives-table {
+  z-index: 0;
+}
+
+.perspectives-bubble {
+  z-index: 1;
+  transform: translate(var(--bubble-x, 0px), var(--bubble-y, 0px));
+}
+
+.perspectives-bubble-code {
+  --bubble-x: 124px;
+  --bubble-y: -237px;
+}
+
+.perspectives-bubble-growth {
+  --bubble-x: 273px;
+  --bubble-y: -196px;
+}
+
+.perspectives-insights {
+  position: absolute;
+  z-index: var(--z-content);
+  top: 216px;
+  right: 64px;
+  width: 604px;
+}
+
+.perspectives-insight {
+  --surface-radius: 46px;
+  display: flex;
+  align-items: center;
+  height: 166px;
+  padding: 0 40px;
+}
+
+.perspectives-insight + .perspectives-insight {
+  margin-top: 36px;
+}
+
+.perspectives-check {
+  display: grid;
+  flex: 0 0 auto;
+  width: 92px;
+  height: 92px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: inset 0 2px rgba(255, 255, 255, 0.42);
+}
+
+.perspectives-check svg {
+  width: 56px;
+  height: 56px;
+  stroke: var(--success-ink);
+  stroke-width: 3.5;
+}
+
+.perspectives-divider {
+  width: 2px;
+  height: 104px;
+  margin: 0 38px;
+  background: var(--surface-border-soft);
+}
+
+.perspectives-insight strong {
+  font-size: 46px;
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: -0.035em;
+}
+
+/* --- 9. Critique -------------------------------------------------------- */
+
+.critique-slide .accent-line {
+  top: 145px;
+  width: 278px;
+}
+
+.critique-slide .dot-grid-bottom {
+  right: 78px;
+  bottom: 70px;
+  left: auto;
+}
+
+.critique-dot-left {
+  position: absolute;
+  z-index: var(--z-decor);
+  top: 196px;
+  left: 78px;
+  width: 118px;
+  height: 94px;
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.9) 3px,
+    transparent 3.5px
+  );
+  background-size: 42px 34px;
+}
+
+.critique-scene {
+  z-index: var(--z-content);
+}
+
+.critique-person {
+  position: absolute;
+  z-index: 1;
+  object-fit: contain;
+  filter: drop-shadow(0 17px 19px rgba(0, 0, 0, 0.34));
+}
+
+.critique-person-ben {
+  top: 277px;
+  left: 26px;
+  width: 462px;
+  height: 582px;
+}
+
+.critique-person-maximilian {
+  top: 262px;
+  left: 902px;
+  width: 465px;
+  height: 625px;
+}
+
+.critique-card {
+  --surface-radius: 48px;
+  position: absolute;
+  z-index: var(--z-scene);
+  top: 262px;
+  width: 530px;
+  height: 578px;
+  padding: 68px 52px 42px;
+}
+
+.critique-card-ben {
+  left: 410px;
+}
+
+.critique-card-maximilian {
+  right: 64px;
+  width: 590px;
+}
+
+.critique-name {
+  position: absolute;
+  top: -48px;
+  left: 50%;
+  z-index: 2;
+  min-width: 210px;
+  padding: 13px 34px 14px;
+  border: 2px solid rgba(255, 255, 255, 0.62);
+  border-radius: 999px;
+  background: linear-gradient(
+    145deg,
+    rgba(250, 251, 251, 0.98),
+    rgba(198, 204, 214, 0.96)
+  );
+  box-shadow: 0 8px 13px rgba(0, 0, 0, 0.25);
+  color: var(--accent-ink);
+  font-size: 46px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  text-align: center;
+  transform: translateX(-50%);
+}
+
+.critique-card-maximilian .critique-name {
+  min-width: 360px;
+}
+
+.critique-card h3 {
+  margin: 0;
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+}
+
+.critique-rule {
+  display: block;
+  height: 2px;
+  margin: 44px 0 30px;
+  background: var(--surface-border);
+}
+
+.critique-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.critique-card li {
+  display: flex;
+  align-items: center;
+  min-height: 77px;
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.028em;
+}
+
+.critique-card li + li {
+  margin-top: 18px;
+}
+
+.critique-card li > span {
+  display: grid;
+  flex: 0 0 auto;
+  width: 60px;
+  height: 60px;
+  margin-right: 25px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.critique-card li svg {
+  width: 39px;
+  height: 39px;
+  stroke: var(--accent-ink);
+  stroke-width: 3.8;
+}
+
+/* --- 10. Conclusion ----------------------------------------------------- */
+
+.conclusion-slide .slide-header .accent-line {
+  display: none;
+}
+
+.conclusion-slide .dot-grid-bottom {
+  right: 78px;
+  bottom: 70px;
+  left: auto;
+}
+
+.conclusion-scene {
+  z-index: var(--z-scene);
+}
+
+.conclusion-platform,
+.conclusion-characters {
+  position: absolute;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.conclusion-platform {
+  bottom: -48px;
+  left: 14px;
+  width: 1401px;
+}
+
+.conclusion-characters {
+  bottom: 136px;
+  left: 184px;
+  z-index: 1;
+  width: 1006px;
+  filter: drop-shadow(0 17px 19px rgba(0, 0, 0, 0.3));
+}
+
+.conclusion-statement {
+  position: absolute;
+  z-index: var(--z-content);
+  top: 177px;
+  left: 88px;
+  width: 1110px;
+}
+
+.conclusion-statement h3 {
+  margin: 0;
+  font-size: 76px;
+  font-weight: 900;
+  line-height: 1.13;
+  letter-spacing: -0.052em;
+}
+
+.conclusion-statement em {
+  color: var(--accent);
+  font-style: normal;
+}
+
+.conclusion-statement > i {
+  display: block;
+  width: 220px;
+  height: 16px;
+  margin-top: 37px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.conclusion-summary {
+  --surface-radius: 48px;
+  position: absolute;
+  z-index: var(--z-content);
+  top: 340px;
+  right: 68px;
+  width: 610px;
+  padding: 20px 44px;
+}
+
+.conclusion-summary-row {
+  display: flex;
+  align-items: center;
+  min-height: 110px;
+}
+
+.conclusion-summary-row + .conclusion-summary-row {
+  border-top: 2px solid var(--surface-border-soft);
+}
+
+.conclusion-summary-row > svg {
+  flex: 0 0 auto;
+  width: 78px;
+  height: 78px;
+  margin-right: 34px;
+  stroke-width: 2.4;
+}
+
+.conclusion-summary-row strong {
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.026em;
+}
+
+/* --- 11. Sources -------------------------------------------------------- */
+
+.sources-slide .accent-line {
+  width: 320px;
+}
+
+.sources-slide .dot-grid-bottom {
+  right: 78px;
+  bottom: 70px;
+  left: auto;
+}
+
+.sources-board {
+  z-index: var(--z-content);
+}
+
+.source-card {
+  --surface-radius: 38px;
+  position: absolute;
+  width: 850px;
+  height: 320px;
+  padding: 34px 42px 30px;
+}
+
+.source-card-one,
+.source-card-three {
+  left: 78px;
+}
+
+.source-card-two,
+.source-card-four {
+  right: 78px;
+}
+
+.source-card-one,
+.source-card-two {
+  top: 222px;
+}
+
+.source-card-three,
+.source-card-four {
+  top: 608px;
+}
+
+.source-index {
+  display: block;
+  margin-bottom: 30px;
+  color: var(--accent);
+  font-size: 35px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.source-card h3 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.source-card h3 span,
+.source-title span {
+  color: var(--text-muted);
+}
+
+.source-title {
+  margin: 13px 0 0;
+  font-size: 25px;
+  font-weight: 900;
+  line-height: 1.14;
+  letter-spacing: -0.025em;
+}
+
+.source-meta {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.source-links {
+  position: absolute;
+  right: 42px;
+  bottom: 30px;
+  left: 42px;
+  display: flex;
+  gap: 24px;
+}
+
+.source-links a {
+  border-bottom: 2px solid var(--accent);
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.source-links a:hover,
+.source-links a:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
+.resolution-points {
+  position: absolute;
+  top: 44px;
+  right: 48px;
+  z-index: 2;
+  width: 530px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1.16;
+  letter-spacing: -0.025em;
+}
+
+.resolution-points li {
+  position: relative;
+  padding-left: 44px;
+}
+
+.resolution-points li + li {
+  margin-top: 20px;
+}
+
+.resolution-points li::before {
+  content: "";
+  position: absolute;
+  top: 0.43em;
+  left: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.32);
+}
+
+/* ===========================================================================
+ * 6. Motion
+ *
+ * The "from" state of an entrance lives in its @keyframes, never on the
+ * element: `animation-fill-mode: both` already holds it through the delay,
+ * and keeping the element itself at its resting state is what lets overview
+ * mode render finished slides instead of invisible ones.
+ * ======================================================================== */
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--rise, 26px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--drop-from, -46px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes slide-in-x {
+  from {
+    opacity: 0;
+    transform: translateX(var(--slide-from));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes unfold-panel-x {
+  from {
+    opacity: 0;
+    transform: scaleX(0.03);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes bubble-drop-in {
+  from {
+    opacity: 0;
+    transform: translate(
+      var(--bubble-x, 0px),
+      calc(var(--bubble-y, 0px) + var(--drop-from, -22px))
+    );
+  }
+  to {
+    opacity: 1;
+    transform: translate(var(--bubble-x, 0px), var(--bubble-y, 0px));
+  }
+}
+
+@keyframes platform-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-54px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes person-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-75.6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --- 1. Cover ------------------------------------------------------------ */
+
+.reveal .cover-slide.present .cover-route {
+  --slide-from: 12%;
+  animation: slide-in-x 500ms var(--ease-drop) both;
+}
+
+.reveal .cover-slide.present .cover-character {
+  --slide-from: -12%;
+  animation: slide-in-x 500ms var(--ease-drop) both;
+}
+
+/* --- 2. Comparison ------------------------------------------------------- */
+
+.reveal .comparison-slide.present .participant-left {
+  --slide-from: -11%;
+  animation: slide-in-x 500ms var(--ease-drop) both;
+}
+
+.reveal .comparison-slide.present .participant-right {
+  --slide-from: 11%;
+  animation: slide-in-x 500ms var(--ease-drop) both;
+}
+
+.reveal .comparison-slide.present .comparison-card {
+  animation: drop-in 350ms var(--ease-drop) both;
+  animation-delay: calc(650ms + (var(--i) - 1) * 150ms);
+}
+
+.reveal .comparison-question.fragment {
+  visibility: visible;
+  transition:
+    opacity 300ms var(--ease-drop),
+    transform 300ms var(--ease-drop);
+}
+
+.reveal .comparison-question.fragment.visible {
+  --enter-y: 0px;
+  opacity: 1;
+}
+
+/* --- 3. Outline ---------------------------------------------------------- */
+
+.reveal .outline-slide.present .outline-item {
+  animation: drop-in 350ms var(--ease-drop) both;
+  animation-delay: calc(120ms + (var(--i) - 1) * 150ms);
+}
+
+/* --- 4. Definition ------------------------------------------------------- */
+
+/* Both bands stay in the layout; only their opacity is driven by the
+   fragment, so the scene below them never shifts. */
+.reveal .definition-strong.fragment,
+.reveal .definition-weak.fragment {
+  visibility: hidden;
+  opacity: 1;
+  transition: none;
+}
+
+.reveal .definition-strong.fragment.visible,
+.reveal .definition-weak.fragment.visible {
+  visibility: visible;
+}
+
+/* Sequence: platform -> people -> links, top band then bottom band. */
+.definition-person-top {
+  --t: calc(560ms + (var(--i) - 1) * 105ms);
+}
+
+.definition-person-bottom {
+  --t: calc(1360ms + (var(--i) - 4) * 105ms);
+}
+
+.reveal
+  .definition-slide.present:not(.is-returning)
+  .definition-strong.visible
+  .binding-card-strong {
+  animation: fade-in 280ms var(--ease-enter) both;
+}
+
+.reveal
+  .definition-slide.present:not(.is-returning)
+  .definition-strong.visible
+  .definition-platform-top {
+  animation: platform-drop 480ms var(--ease-enter) 120ms both;
+}
+
+.reveal
+  .definition-slide.present:not(.is-returning)
+  .definition-strong.visible
+  .definition-platform-bottom {
+  animation: platform-drop 480ms var(--ease-enter) 850ms both;
+}
+
+.reveal
+  .definition-slide.present:not(.is-returning)
+  .definition-strong.visible
+  .definition-people
+  img {
+  animation: person-drop 360ms var(--ease-enter) var(--t) both;
+}
+
+.reveal
+  .definition-slide.present:not(.is-returning)
+  .definition-strong.visible
+  .definition-link-top {
+  animation: fade-in 280ms var(--ease-enter) 1050ms both;
+}
+
+.reveal
+  .definition-slide.present:not(.is-returning)
+  .definition-strong.visible
+  .definition-link-bottom {
+  animation: fade-in 280ms var(--ease-enter) 2035ms both;
+}
+
+.reveal
+  .definition-slide.present:not(.is-returning)
+  .definition-weak.visible
+  .binding-card-weak {
+  animation: fade-in 320ms var(--ease-enter) both;
+}
+
+.reveal
+  .definition-slide.present:not(.is-returning)
+  .definition-weak.visible
+  .definition-weak-links {
+  animation: fade-in 280ms var(--ease-enter) 200ms both;
+}
+
+/* --- 5. Research --------------------------------------------------------- */
+
+.reveal .research-slide .frequency-row.fragment {
+  visibility: visible;
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 360ms var(--ease-enter),
+    transform 360ms var(--ease-enter);
+}
+
+.reveal .research-slide .frequency-row.fragment.visible {
+  opacity: 1;
+  transform: none;
+}
+
+.reveal .research-slide .research-insight.fragment {
+  visibility: visible;
+  opacity: 0;
+}
+
+.reveal .research-slide .research-insight.fragment.visible {
+  opacity: 1;
+}
+
+.reveal .research-slide.present .researcher-card,
+.reveal .research-slide.present .research-artwork,
+.reveal .research-slide.present .research-insight.visible {
+  --rise: 24px;
+  animation: rise-in 460ms var(--ease-enter) both;
+}
+
+.reveal .research-slide.present .research-artwork,
+.reveal .research-slide.present .research-insight.visible {
+  animation-delay: 80ms;
+}
+
+/* --- 6. LinkedIn --------------------------------------------------------- */
+
+.reveal .linkedin-slide.present .linkedin-scene {
+  animation: rise-in 460ms var(--ease-enter) both;
+}
+
+.reveal .linkedin-slide.present .linkedin-logo,
+.reveal .linkedin-slide.present .linkedin-metrics {
+  animation: rise-in 460ms var(--ease-enter) 110ms both;
+}
+
+.reveal .linkedin-slide.present .linkedin-result {
+  animation: rise-in 460ms var(--ease-enter) 230ms both;
+}
+
+/* --- 7. Resolution ------------------------------------------------------ */
+
+.reveal .resolution-slide.present .resolution-person {
+  --drop-from: -28px;
+  animation: drop-in 420ms var(--ease-enter) both;
+  animation-delay: calc((var(--i) - 1) * 520ms);
+}
+
+.reveal .resolution-slide.present .resolution-panel::before {
+  animation: unfold-panel-x 460ms var(--ease-enter) both;
+  animation-delay: calc(230ms + (var(--i) - 1) * 520ms);
+}
+
+.reveal .resolution-slide.present .resolution-name {
+  --rise: 18px;
+  animation: rise-in 420ms var(--ease-enter) both;
+  animation-delay: calc((var(--i) - 1) * 520ms);
+}
+
+.reveal .resolution-slide .resolution-network.fragment,
+.reveal .resolution-slide .resolution-points.fragment {
+  visibility: visible;
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 360ms var(--ease-enter),
+    transform 360ms var(--ease-enter);
+}
+
+.reveal .resolution-slide .resolution-network.fragment.visible,
+.reveal .resolution-slide .resolution-points.fragment.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* --- 8. Perspectives ---------------------------------------------------- */
+
+.reveal .perspectives-slide.present .perspectives-table {
+  --rise: 28px;
+  animation: rise-in 480ms var(--ease-enter) both;
+}
+
+.reveal .perspectives-slide.present .perspectives-bubble {
+  --drop-from: -22px;
+  animation: bubble-drop-in 360ms var(--ease-enter) both;
+}
+
+.reveal .perspectives-slide.present .perspectives-bubble-code {
+  animation-delay: 220ms;
+}
+
+.reveal .perspectives-slide.present .perspectives-bubble-growth {
+  animation-delay: 310ms;
+}
+
+.reveal .perspectives-slide.present .perspectives-insight {
+  --rise: 20px;
+  animation: rise-in 420ms var(--ease-enter) both;
+  animation-delay: calc(240ms + (var(--i) - 1) * 110ms);
+}
+
+/* --- 9. Critique -------------------------------------------------------- */
+
+.reveal .critique-slide.present .critique-person-ben {
+  --slide-from: -10%;
+  animation: slide-in-x 460ms var(--ease-enter) both;
+}
+
+.reveal .critique-slide.present .critique-card-ben {
+  --rise: 24px;
+  animation: rise-in 440ms var(--ease-enter) both;
+}
+
+.reveal .critique-slide .critique-person-maximilian.fragment,
+.reveal .critique-slide .critique-card-maximilian.fragment {
+  visibility: visible;
+  opacity: 0;
+  transition:
+    opacity 440ms var(--ease-enter),
+    transform 440ms var(--ease-enter);
+}
+
+.reveal .critique-slide .critique-person-maximilian.fragment {
+  transform: translateX(10%);
+}
+
+.reveal .critique-slide .critique-card-maximilian.fragment {
+  transform: translateY(24px);
+}
+
+.reveal .critique-slide .critique-person-maximilian.fragment.visible,
+.reveal .critique-slide .critique-card-maximilian.fragment.visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* --- 10. Conclusion ----------------------------------------------------- */
+
+.reveal .conclusion-slide.present .conclusion-platform {
+  animation: rise-in 480ms var(--ease-enter) both;
+}
+
+.reveal .conclusion-slide.present .conclusion-characters {
+  --rise: 26px;
+  animation: rise-in 480ms var(--ease-enter) 120ms both;
+}
+
+.reveal .conclusion-slide.present .conclusion-statement {
+  --rise: 22px;
+  animation: rise-in 440ms var(--ease-enter) 120ms both;
+}
+
+.reveal .conclusion-slide.present .conclusion-summary {
+  --rise: 22px;
+  animation: rise-in 440ms var(--ease-enter) 220ms both;
+}
+
+/* --- 11. Sources -------------------------------------------------------- */
+
+.reveal .sources-slide.present .source-card {
+  --rise: 20px;
+  animation: rise-in 420ms var(--ease-enter) both;
+  animation-delay: calc((var(--i) - 1) * 90ms);
+}
+
+/* --- Overview ------------------------------------------------------------ */
+/* Esc shows six finished slides, never six mid-entrance ones. */
+
+.reveal.overview .slides section *,
+.reveal.overview .slides section *::before,
+.reveal.overview .slides section *::after {
+  animation: none !important;
+}
+
+.reveal.overview .comparison-question {
+  --enter-y: 0px;
+}
+
+.reveal.overview .frequency-row.fragment {
+  transform: none;
+}
+
+.reveal.overview .resolution-network.fragment,
+.reveal.overview .resolution-points.fragment {
+  opacity: 1;
+  transform: none;
+}
+
+/* --- PDF export ---------------------------------------------------------- */
+
+html.reveal-print,
+html.reveal-print body,
+html.reveal-print .reveal .slides > .pdf-page {
+  background-color: var(--canvas);
+}
+
+html.reveal-print body {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+html.reveal-print .reveal .slides section {
+  width: var(--slide-width) !important;
+  height: var(--slide-height) !important;
+  overflow: hidden !important;
+}
+
+html.reveal-print .presentation-controls,
+html.reveal-print .presentation-progress {
+  display: none !important;
+}
+
+html.reveal-print .reveal .slides *,
+html.reveal-print .reveal .slides *::before,
+html.reveal-print .reveal .slides *::after {
+  animation: none !important;
+  transition: none !important;
+  /* PostScript PDF drivers can omit filtered images and SVG glyphs. */
+  filter: none !important;
+}
+
+html.reveal-print .reveal .slides img {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* --- Reduced motion ------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal *,
+  .reveal *::before,
+  .reveal *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}

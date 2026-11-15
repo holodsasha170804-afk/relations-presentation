@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-ssr/
+.vite-image-cache/
+tmp/
+output/
+.claude/
+.idea/
